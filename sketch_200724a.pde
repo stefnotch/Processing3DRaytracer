@@ -1,11 +1,10 @@
-import java.util.Random; 
-
 // Pixels
 int width = 199;
 int height = 200;
 
 // World
 float skycolor = 0.2;
+// A sphere consists of a vec3 and a radius
 float[] spheres = new float[] { 0, 0, 0, 1 };
 
 // I'm not using anything special... :3
@@ -35,7 +34,7 @@ void setup() {
   background(0);
   fill(255, 255, 255);
 
-  /*
+  
   float[][] pixels = new float[width][height];
   
   pixels[10][10] = 1;
@@ -48,7 +47,7 @@ void setup() {
   
   pathtrace(pixels);
   
-  blitToScreen(pixels);*/
+  blitToScreen(pixels);
 }
 
 
@@ -69,4 +68,20 @@ void blitToScreen(float[][] pixels) {
   
   // Note: This cleary is only a single "object" that I'm drawing
   text(new String(s), 0, 0, 400, 400);
+}
+
+void pathtrace(float[][] pixels) {
+  int samplesPerPixel = 1;
+  float samplesMultiplier = 1.0 / samplesPerPixel;
+  for(int i = 0; i < width; i++) {
+    for(int j = 0; j < height; j++) {
+      float outputColor = 0;
+      outputColor = j / (float)height;
+      for(int s = 0; s < samplesPerPixel; s++) {
+        
+      }
+      outputColor *= samplesMultiplier;
+      pixels[i][j] = outputColor;
+    }
+  }
 }
