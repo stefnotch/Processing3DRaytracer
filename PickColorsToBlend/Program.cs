@@ -15,15 +15,44 @@ namespace PickColorsToBlend
 
     struct ColorObject
     {
-        public int ResultingColor;
         public int BitPattern;
-        public int Depth;
+        public byte Depth;
     }
 
     class ColorsResult
     {
         public double Score { get; set; }
-        public ColorObject[] ColorObjects { get; set; }
+        public byte[] ResultingColors { get; set; }
+        public ColorObject[] ResultingColorObjects { get; set; }
+        public GreyscaleColor[] ColorLayers { get; set; }
+    }
+
+    class ColorsResultOutput
+    {
+        public ColorsResultOutput(ColorsResult colorsResult)
+        {
+            Score = colorsResult.Score;
+            ResultingColorObjects = new FullColorObject[colorsResult.ResultingColorObjects.Length];
+            for (int i = 0; i < ResultingColorObjects.Length; i++)
+            {
+                ResultingColorObjects[i] = new FullColorObject()
+                {
+                    ResultingColor = colorsResult.ResultingColors[i],
+                    BitPattern = colorsResult.ResultingColorObjects[i].BitPattern,
+                    Depth = colorsResult.ResultingColorObjects[i].Depth,
+                };
+            }
+            ColorLayers = colorsResult.ColorLayers;
+        }
+
+        public class FullColorObject
+        {
+            public byte ResultingColor { get; set; }
+            public int BitPattern { get; set; }
+            public byte Depth { get; set; }
+        }
+        public double Score { get; set; }
+        public FullColorObject[] ResultingColorObjects { get; set; }
         public GreyscaleColor[] ColorLayers { get; set; }
     }
 
@@ -31,6 +60,7 @@ namespace PickColorsToBlend
     {
         const int MAX_DEPTH = 5;
         const int RUNS = 1_000_000;
+
         static void Main(string[] args)
         {
             Console.WriteLine($"Runs {RUNS} with {MAX_DEPTH} color layers");
@@ -40,6 +70,7 @@ namespace PickColorsToBlend
             // The arrays are being created here to reduce the number of useless object allocations
             Stopwatch stopWatch = new Stopwatch();
             stopWatch.Start();
+            byte[] resultingColors = new byte[colorObjectCount];
             ColorObject[] colorObjects = new ColorObject[colorObjectCount];
 
             GreyscaleColor[] colorLayers = new GreyscaleColor[MAX_DEPTH + 1];
@@ -51,7 +82,7 @@ namespace PickColorsToBlend
             Random rng = new Random(); // This could be a source of derp, since the C# RNG != the Java RNG
             for (int i = 0; i < RUNS; i++)
             {
-                ColorsResult result = DoRun(maxScore, colorObjects, colorLayers, rng);
+                ColorsResult result = DoRun(maxScore, resultingColors, colorObjects, colorLayers, rng);
                 if (result != null)
                 {
                     Console.WriteLine($"Best score {result.Score}");
@@ -62,14 +93,15 @@ namespace PickColorsToBlend
             stopWatch.Stop();
             Console.WriteLine($"Completed in {stopWatch.ElapsedMilliseconds}ms");
 
+            Console.ReadLine();
+
             // And then output it or return it from the thread
             var jsonSerializerOptions = new JsonSerializerOptions
             {
                 WriteIndented = true
             };
             jsonSerializerOptions.Converters.Add(new GreyscaleColorConverter());
-            jsonSerializerOptions.Converters.Add(new ColorObjectConverter());
-            //Console.WriteLine(JsonSerializer.Serialize(maxResult, jsonSerializerOptions));
+            Console.WriteLine(JsonSerializer.Serialize(new ColorsResultOutput(maxResult), jsonSerializerOptions));
             Console.ReadLine();
         }
 
@@ -79,13 +111,16 @@ namespace PickColorsToBlend
             return number ^ (1 << bitIndex);
         }
 
-        static ColorsResult DoRun(double maxScore, ColorObject[] colorObjects, GreyscaleColor[] colorLayers, Random rng)
+        static ColorsResult DoRun(double maxScore, byte[] resultingColors, ColorObject[] colorObjects, GreyscaleColor[] colorLayers, Random rng)
         {
             // 0th color object is always the black background
             // 1st color object is always the white foreground (layer 1)\
             // I have to do this every time because of the .Sort() at the end
-            colorObjects[0] = new ColorObject() { ResultingColor = 0, BitPattern = 0, Depth = 0 };
-            colorObjects[1] = new ColorObject() { ResultingColor = 255, BitPattern = ToggleBit(0, 1), Depth = 1 };
+            resultingColors[0] = 0;
+            resultingColors[1] = 255;
+
+            colorObjects[0] = new ColorObject() { BitPattern = 0, Depth = 0 };
+            colorObjects[1] = new ColorObject() { BitPattern = ToggleBit(0, 1), Depth = 1 };
 
             int colorsObjectsLength = 2;
 
@@ -108,22 +143,22 @@ namespace PickColorsToBlend
                 for (int j = 0; j < len; j++)
                 {
                     // Copied from Processing's sauce code
-                    int lerpedColor = (colorObjects[j].ResultingColor * d_a + greyscale * s_a) >> 8;
+                    int lerpedColor = (resultingColors[j] * d_a + greyscale * s_a) >> 8;
 
                     // New color object
-                    colorObjects[colorsObjectsLength].ResultingColor = lerpedColor;
-                    colorObjects[colorsObjectsLength].Depth = depthIndex;
+                    resultingColors[colorsObjectsLength] = (byte)lerpedColor;
+                    colorObjects[colorsObjectsLength].Depth = (byte)depthIndex;
                     colorObjects[colorsObjectsLength].BitPattern = ToggleBit(colorObjects[j].BitPattern, depthIndex);
                     colorsObjectsLength++;
                 }
             }
 
             // And compute the score
-            Array.Sort(colorObjects, (a, b) => a.ResultingColor - b.ResultingColor);
+            Array.Sort(resultingColors, colorObjects);
             double score = 0;
             for (int i = 0; i < colorsObjectsLength - 1; i++)
             {
-                int diff = colorObjects[i + 1].ResultingColor - colorObjects[i].ResultingColor;
+                int diff = resultingColors[i + 1] - resultingColors[i];
                 if (diff > 1)
                 {
                     score += Math.Sqrt(diff);
@@ -139,7 +174,8 @@ namespace PickColorsToBlend
                 return new ColorsResult()
                 {
                     Score = score,
-                    ColorObjects = (ColorObject[])colorObjects.Clone(),
+                    ResultingColors = (byte[])resultingColors.Clone(),
+                    ResultingColorObjects = (ColorObject[])colorObjects.Clone(),
                     ColorLayers = (GreyscaleColor[])colorLayers.Clone()
                 };
             }
@@ -163,26 +199,6 @@ namespace PickColorsToBlend
             writer.WriteStartObject();
             writer.WriteNumber("Greyscale", value.Greyscale);
             writer.WriteNumber("Alpha", value.Alpha);
-            writer.WriteEndObject();
-        }
-    }
-
-    class ColorObjectConverter : JsonConverter<ColorObject>
-    {
-        public override ColorObject Read(
-            ref Utf8JsonReader reader,
-            Type typeToConvert,
-            JsonSerializerOptions options) => throw new NotImplementedException();
-
-        public override void Write(
-            Utf8JsonWriter writer,
-            ColorObject value,
-            JsonSerializerOptions options)
-        {
-            writer.WriteStartObject();
-            writer.WriteNumber("ResultingColor", value.ResultingColor);
-            writer.WriteNumber("Depth", value.Depth);
-            writer.WriteNumber("BitPattern", value.BitPattern);
             writer.WriteEndObject();
         }
     }
