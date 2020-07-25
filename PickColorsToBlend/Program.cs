@@ -154,7 +154,13 @@ namespace PickColorsToBlend
             }
 
             // And compute the score
+
+            // Swap element 1 with the last element
+            resultingColors[1] = resultingColors[colorsObjectsLength - 1];
+            resultingColors[colorsObjectsLength - 1] = 255;
+            // And sort the rest
             Array.Sort(resultingColors, colorObjects);
+
             double score = 0;
             for (int i = 0; i < colorsObjectsLength - 1; i++)
             {
