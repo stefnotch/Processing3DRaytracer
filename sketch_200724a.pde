@@ -8,15 +8,24 @@ char[] offOn = new char[] { ' ', '█' };
 // A sphere consists of a vec3 and a radius and a material
 float[] spheres = new float[] { 
   0, 100.5, -2.0, 100, 0, // Ground
-  -0.2, 0, -1.2, 0.5, 1, // Sphere
-  0.2, 0.4, -0.7, 0.1, 2 // Small metal sphere
+  -0.2, 0.2, -1.4, 0.4, 1, // Sphere
+  -0.2, -0.3, -1.3, 0.3, 1, // Sphere
+  -0.2, -0.7, -1.25, 0.25, 1, // Sphere
+  -0.25, -0.7, -1., 0.03, 4, // Eye
+  -0.1, -0.7, -1, 0.03, 4, // Eye
+  -0.175, -0.6, -1, 0.03, 5, // Carrot
+  0.2, 0.4, -0.7, 0.1, 2, // Small metal sphere
+  0.7, 0.3, -1.8, 0.5, 3, // Shiny metal sphere
 };
 
 // A material consists of a color and a metal-ness value
 float[] materials = new float[] { 
   0.93,0.93,0.93,0, 
   0.5,0.5,0.5,0,
-  0.8,0.6,0.2,0.9
+  0.8,0.6,0.2,0.9,
+  0.8,0.8,0.8,1,
+  0.05,0.05,0.1,0.2,
+  0.9,0.4,0.1,0,
 };
 
 // Constants
@@ -36,12 +45,38 @@ void setup() {
 
   pathtrace(pixels);
 
-  colorBlitToScreen(pixels);
-  //blitToScreen(pixels);
+  //colorBlitToScreen(pixels);
+  for(int i = 0; i < width; i++) {
+    for(int j = 0; j < 11; j++) {
+      pixels[i][j] = 0xFFFFFFFF; 
+    }
+  }
+  
+  // 5 text rendering calls
+  blitToScreen(pixels);
+  
+  // 7 text rendering calls
+  textFont(createFont("Monospaced", 14), 14);
+  fill(0,0,0);
+  textSize(14);
+  text("ASCII-", 10,10);
+  textSize(12);
+  text("ART", 63,10);
+  textSize(10);
+  text("geht", 90,10);
+  textSize(8);
+  text("auch", 120,10);
+  textSize(6);
+  text("kleiner", 145,10);
+  textSize(3);
+  text("......................................................................................................................................", 163,10);
+  textSize(9);
+  fill(150,150,150);
+  text("C# >> Java", 340,390);
 }
 
 void pathtrace(int[][] pixels) {
-  int samplesPerPixel = 40;
+  int samplesPerPixel = 30;
   float samplesMultiplier = 1.0 / (float)samplesPerPixel;
   float focalLength = 1;
   float[] origin = {0, 0, 0};
@@ -372,7 +407,7 @@ void blitToScreen(int[][] pixels) {
         p = 10;
       } else if (val < 241) {
         p = 34;
-      } else if (val <= 255) {
+      } else {
         p = 2;
       }
 
