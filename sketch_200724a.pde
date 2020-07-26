@@ -7,10 +7,11 @@ char[] offOn = new char[] { ' ', '█' };
 // World
 float skycolor = 0.2;
 // A sphere consists of a vec3 and a radius
-float[] spheres = new float[] { 0, 0, -0.95, 1, 0.4, 0.4, -0.8, 1, -0.4, -0.4, -0.8, 1 };
+float[] spheres = new float[] { 0, 0, -1.0, 0.5,    0, 100.5, -2, 100 };
 
 
 // Constants
+int MAX_RAY_BOUNCES = 50;
 int ALPHA_MASK = 0xFF000000;
 int RED_MASK =   0x00FF0000;
 int GREEN_MASK = 0x0000FF00;
@@ -31,7 +32,7 @@ void setup() {
 }
 
 void pathtrace(int[][] pixels) {
-  int samplesPerPixel = 1;
+  int samplesPerPixel = 4;
   float samplesMultiplier = 1.0 / (float)samplesPerPixel;
   float focalLength = 1;
   float[] origin = {0, 0, 0};
@@ -42,13 +43,13 @@ void pathtrace(int[][] pixels) {
 
   float[] hitVector = {0, 0, 0};
   float[] hitNormalVector = {0, 0, 0};
-  float[] hitDistance = {0};
 
   for (int i = 0; i < width; i++) {
     for (int j = 0; j < height; j++) {      
       pixelColor[0] = 0;
       pixelColor[1] = 0;
       pixelColor[2] = 0;
+      
       for (int s = 0; s < samplesPerPixel; s++) {
         // Texture coordinates
         float u = (i + nextRandom()) / (float)(width - 1);
@@ -56,7 +57,7 @@ void pathtrace(int[][] pixels) {
         // Screenspace coordinates (from -1 to 1)
         float screenX = u * 2 - 1;
         float screenY = v * 2 - 1;
-  
+      
         rayDirection[0] = screenX - origin[0];
         rayDirection[1] = screenY - origin[1];
         rayDirection[2] = -focalLength - origin[2];
@@ -64,25 +65,22 @@ void pathtrace(int[][] pixels) {
         hitColor[0] = 0;
         hitColor[1] = 0;
         hitColor[2] = 0;
-        // TODO: Move this to a function
-        for (int sphereIndex = 0; sphereIndex < spheres.length; sphereIndex += 4) {
-          boolean hit = rayHitSphere(
-            origin, rayDirection, 
-            spheres[sphereIndex], spheres[sphereIndex + 1], spheres[sphereIndex + 2], spheres[sphereIndex + 3], 
-            hitVector, hitNormalVector, hitDistance
-            );
-          if (hit) {
-            hitColor[0] = hitNormalVector[0];
-            hitColor[1] = hitNormalVector[1];
-            hitColor[2] = hitNormalVector[2];
-            break;
-          }
-        }
-
-        pixelColor[0] += hitColor[0] * samplesMultiplier;
-        pixelColor[1] += hitColor[1] * samplesMultiplier;
-        pixelColor[2] += hitColor[2] * samplesMultiplier;
+        
+        float hitDistanceMin = 0;
+        float hitDistanceMax = 1000000;
+        castRay(origin, rayDirection, hitDistanceMin, hitDistanceMax, 0, hitVector, hitNormalVector, hitColor);
+        if(hitColor[0] < 0) hitColor[0] = 0; if(hitColor[0] > 1) hitColor[0] = 1;
+        if(hitColor[1] < 0) hitColor[1] = 0; if(hitColor[1] > 1) hitColor[1] = 1;
+        if(hitColor[2] < 0) hitColor[2] = 0; if(hitColor[2] > 1) hitColor[2] = 1;
+        pixelColor[0] += hitColor[0];
+        pixelColor[1] += hitColor[1];
+        pixelColor[2] += hitColor[2];
       }
+      
+      // Gamma correction
+      pixelColor[0] = sqrt(pixelColor[0] * samplesMultiplier);
+      pixelColor[1] = sqrt(pixelColor[1] * samplesMultiplier);
+      pixelColor[2] = sqrt(pixelColor[2] * samplesMultiplier);
       
       int alpha = 255;
       int red = (int)(pixelColor[0] * 255);
@@ -92,27 +90,87 @@ void pathtrace(int[][] pixels) {
       if(green < 0) green = 0; if(green > 255) green = 255;
       if(blue < 0) blue = 0; if(blue > 255) blue = 255;
       
-      red *= 2;
-      green *= 2;
-      blue *= 2;
       
       pixels[i][j] = ((alpha << 24) & ALPHA_MASK) | ((red << 16) & RED_MASK) | ((green << 8) & GREEN_MASK) | (blue & BLUE_MASK);
     }
   }
 }
 
+
+float[] castRayDirection = {0,0,0};
+void castRay(
+    float[] rayCenter, float[] rayDirection, 
+    float hitDistanceMin, float hitDistanceMax,
+    float depth,
+    float[] hitVector, float[] hitNormalVector, float[] hitColor
+  ) {
+ float EPSILON = 0.001;
+ if(depth > MAX_RAY_BOUNCES) {
+   hitColor[0] = 0;
+   hitColor[1] = 0;
+   hitColor[2] = 0;
+   return;   
+ }
+ 
+ // TODO: Find best hit
+ for (int sphereIndex = 0; sphereIndex < spheres.length; sphereIndex += 4) {
+    float hitDistance = rayHitSphere(
+      rayCenter, rayDirection, 
+      spheres[sphereIndex], spheres[sphereIndex + 1], spheres[sphereIndex + 2], spheres[sphereIndex + 3], 
+      hitDistanceMin, hitDistanceMax,
+      hitVector, hitNormalVector
+      );
+    if (hitDistance > 0) {
+      // Random unit vector
+      float randA = nextRandom() * TWO_PI;
+      float randZ = nextRandom() * 2 - 1;
+      float randR = sqrt(1 - randZ * randZ);
+      
+      float randVecX = randR * cos(randA);
+      float randVecY = randR * sin(randA);
+      float randVecZ = randZ;
+      
+      castRayDirection[0] = (hitNormalVector[0] + randVecX) - hitVector[0];
+      castRayDirection[1] = (hitNormalVector[1] + randVecY) - hitVector[1];
+      castRayDirection[2] = (hitNormalVector[2] + randVecZ) - hitVector[2];
+      castRay(hitVector, castRayDirection, hitDistanceMin, hitDistanceMax, depth + 1, hitVector, hitNormalVector, hitColor);
+      
+      hitColor[0] = hitColor[0] * 0.5;
+      hitColor[1] = hitColor[1] * 0.5;
+      hitColor[2] = hitColor[2] * 0.5;
+      return;
+    }
+  }
+  
+  // Sky
+  float rayDirectionLenSquared = rayDirection[0] * rayDirection[0] + rayDirection[1] * rayDirection[1] + rayDirection[2] * rayDirection[2];
+  if(rayDirectionLenSquared < EPSILON) {
+    hitColor[0] = 0;
+    hitColor[1] = 0;
+    hitColor[2] = 0;
+  } else {
+    // How much are we looking up, normalized to the range [0;1[
+    float t = (rayDirection[1] / sqrt(rayDirectionLenSquared) + 1.0) * 0.5;
+    hitColor[0] = 1.0*t + 0.5*(1-t);
+    hitColor[1] = 1.0*t + 0.7*(1-t);
+    hitColor[2] = 1.0*t + 1.0*(1-t);
+  }
+}
+
 // Manually writing variables here, because structs aren't a thing
 float[] sphereCenterToRayStart = {0, 0, 0};
-boolean rayHitSphere(
+float rayHitSphere(
   float[] rayCenter, float[] rayDirection, 
   float sphereCenterX, float sphereCenterY, float sphereCenterZ, float sphereRadius, 
-  float[] hitVector, float[] hitNormalVector, float[] hitDistance
+  float hitDistanceMin, float hitDistanceMax,
+  float[] hitVector, float[] hitNormalVector
   ) {
+  float EPSILON = 0.001;
   sphereCenterToRayStart[0] = rayCenter[0] - sphereCenterX;
   sphereCenterToRayStart[1] = rayCenter[1] - sphereCenterY;
   sphereCenterToRayStart[2] = rayCenter[2] - sphereCenterZ;
   // Quadratic formula: (-b +- sqrt(b*b - 4*a*c)) / 2*a
-  // Damn, it also works for vectors?
+  // Damn, it also works for vectors? That's hecking neato
   // Modify the formula (because our b = 2 * something)
   // (-2*B +- sqrt(4*(B*B - a*c))) / 2*a
   // (-2*B +- 2*sqrt(B*B - a*c)) / 2*a
@@ -127,18 +185,19 @@ boolean rayHitSphere(
     rayDirection[2] * sphereCenterToRayStart[2]
     );
 
-  float c = 2 * (sphereCenterToRayStart[0] * sphereCenterToRayStart[0] +
+  float c = (sphereCenterToRayStart[0] * sphereCenterToRayStart[0] +
     sphereCenterToRayStart[1] * sphereCenterToRayStart[1] +
     sphereCenterToRayStart[2] * sphereCenterToRayStart[2]
     ) - sphereRadius * sphereRadius;
 
   // Stuff inside the sqrt()
   float n = B*B - a*c;
-  if (n < 0) return false; // No solutions, it's a complex number after all
+  if (n < 0) return -1; // No solutions, it's a complex number after all
 
   // The closer solution of the two
   float smallerSolution = (-B - sqrt(n)) / a;
-  if (smallerSolution < 0) return false; // Object is behind us/we are inside the object
+  if (smallerSolution < (hitDistanceMin + EPSILON)) return -1; // Object is behind us/we are inside the object
+  if (smallerSolution > hitDistanceMax) return -1;
 
   hitVector[0] = rayCenter[0] + rayDirection[0] * smallerSolution;
   hitVector[1] = rayCenter[1] + rayDirection[1] * smallerSolution;
@@ -148,8 +207,7 @@ boolean rayHitSphere(
   hitNormalVector[1] = (hitVector[1] - sphereCenterY) / sphereRadius;
   hitNormalVector[2] = (hitVector[2] - sphereCenterZ) / sphereRadius;
   
-  hitDistance[0] = smallerSolution;
-  return true;
+  return smallerSolution;
 }
 
 // I'm not using anything special... :3
