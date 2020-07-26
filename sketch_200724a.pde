@@ -5,10 +5,19 @@ int height = 400;
 char[] offOn = new char[] { ' ', '█' };
 
 // World
-float skycolor = 0.2;
-// A sphere consists of a vec3 and a radius
-float[] spheres = new float[] { 0, 100.5, -2, 100,    0, 0, -1.0, 0.5 };
+// A sphere consists of a vec3 and a radius and a material
+float[] spheres = new float[] { 
+  0, 100.5, -2.0, 100, 0, // Ground
+  -0.2, 0, -1.2, 0.5, 1, // Sphere
+  0.2, 0.4, -0.7, 0.1, 2 // Small metal sphere
+};
 
+// A material consists of a color and a metal-ness value
+float[] materials = new float[] { 
+  0.93,0.93,0.93,0, 
+  0.5,0.5,0.5,0,
+  0.8,0.6,0.2,0.9
+};
 
 // Constants
 int MAX_RAY_BOUNCES = 50;
@@ -32,7 +41,7 @@ void setup() {
 }
 
 void pathtrace(int[][] pixels) {
-  int samplesPerPixel = 4;
+  int samplesPerPixel = 40;
   float samplesMultiplier = 1.0 / (float)samplesPerPixel;
   float focalLength = 1;
   float[] origin = {0, 0, 0};
@@ -121,7 +130,8 @@ void castRay(
   }
 
   float closestHitDistance = -1;
-  for (int sphereIndex = 0; sphereIndex < spheres.length; sphereIndex += 4) {
+  int closestHitMaterial = -1;
+  for (int sphereIndex = 0; sphereIndex < spheres.length; sphereIndex += 5) {
     float hitDistance = rayHitSphere(
       rayCenter, rayDirection, 
       spheres[sphereIndex], spheres[sphereIndex + 1], spheres[sphereIndex + 2], spheres[sphereIndex + 3], 
@@ -136,27 +146,48 @@ void castRay(
       hitNormalVector[0] = castRayHitNormalVector[0];
       hitNormalVector[1] = castRayHitNormalVector[1];
       hitNormalVector[2] = castRayHitNormalVector[2];
+      closestHitMaterial = (int)spheres[sphereIndex + 4];
     }
   }
 
   if (closestHitDistance > 0) {
+    float materialR = materials[closestHitMaterial * 4];
+    float materialG = materials[closestHitMaterial * 4 + 1];
+    float materialB = materials[closestHitMaterial * 4 + 2];
+    float materialMetalness = materials[closestHitMaterial * 4 + 3];
+    
     // Random unit vector
     float randA = nextRandom() * TWO_PI;
     float randZ = nextRandom() * 2 - 1;
     float randR = sqrt(1 - randZ * randZ);
-
+    
     float randVecX = randR * cos(randA);
     float randVecY = randR * sin(randA);
     float randVecZ = randZ;
-
-    castRayDirection[0] = (hitNormalVector[0] + randVecX) - hitVector[0];
-    castRayDirection[1] = (hitNormalVector[1] + randVecY) - hitVector[1];
-    castRayDirection[2] = (hitNormalVector[2] + randVecZ) - hitVector[2];
+    
+    // Next ray
+    if(materialMetalness > 0) {
+      float fuzz = 1 - materialMetalness;
+      //rayDirection (v),hitNormalVector (n)
+      float vProjN = (-rayDirection[0]) * hitNormalVector[0] + (-rayDirection[1]) * hitNormalVector[1] + (-rayDirection[2]) * hitNormalVector[2];
+      float reflectedX = rayDirection[0] + 2 * vProjN * hitNormalVector[0];
+      float reflectedY = hitNormalVector[1] + 2 * vProjN * hitNormalVector[1];
+      float reflectedZ = hitNormalVector[2] + 2 * vProjN * hitNormalVector[2];
+      castRayDirection[0] = (reflectedX + randVecX*fuzz) - hitVector[0];
+      castRayDirection[1] = (reflectedY + randVecY*fuzz) - hitVector[1];
+      castRayDirection[2] = (reflectedZ + randVecZ*fuzz) - hitVector[2];
+      
+    } else {
+      castRayDirection[0] = (hitNormalVector[0] + randVecX) - hitVector[0];
+      castRayDirection[1] = (hitNormalVector[1] + randVecY) - hitVector[1];
+      castRayDirection[2] = (hitNormalVector[2] + randVecZ) - hitVector[2];
+    }
     castRay(hitVector, castRayDirection, hitDistanceMin, hitDistanceMax, depth + 1, hitVector, hitNormalVector, hitColor);
 
-    hitColor[0] = hitColor[0] * 0.5;
-    hitColor[1] = hitColor[1] * 0.5;
-    hitColor[2] = hitColor[2] * 0.5;
+    // TODO: Color stuff
+    hitColor[0] = hitColor[0] * materialR;
+    hitColor[1] = hitColor[1] * materialG;
+    hitColor[2] = hitColor[2] * materialB;
   } else {  
     // Sky
     float rayDirectionLenSquared = rayDirection[0] * rayDirection[0] + rayDirection[1] * rayDirection[1] + rayDirection[2] * rayDirection[2];
@@ -178,7 +209,7 @@ void castRay(
 float[] sphereCenterToRayStart = {0, 0, 0};
 float rayHitSphere(
   float[] rayCenter, float[] rayDirection, 
-  float sphereCenterX, float sphereCenterY, float sphereCenterZ, float sphereRadius, 
+  float sphereCenterX, float sphereCenterY, float sphereCenterZ, float sphereRadius,
   float hitDistanceMin, float hitDistanceMax, 
   float[] hitVector, float[] hitNormalVector
   ) {
