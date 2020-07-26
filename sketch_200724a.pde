@@ -7,7 +7,7 @@ char[] offOn = new char[] { ' ', '█' };
 // World
 float skycolor = 0.2;
 // A sphere consists of a vec3 and a radius
-float[] spheres = new float[] { 0, 0, -1.0, 0.5,    0, 100.5, -2, 100 };
+float[] spheres = new float[] { 0, 100.5, -2, 100,    0, 0, -1.0, 0.5 };
 
 
 // Constants
@@ -49,7 +49,7 @@ void pathtrace(int[][] pixels) {
       pixelColor[0] = 0;
       pixelColor[1] = 0;
       pixelColor[2] = 0;
-      
+
       for (int s = 0; s < samplesPerPixel; s++) {
         // Texture coordinates
         float u = (i + nextRandom()) / (float)(width - 1);
@@ -57,7 +57,7 @@ void pathtrace(int[][] pixels) {
         // Screenspace coordinates (from -1 to 1)
         float screenX = u * 2 - 1;
         float screenY = v * 2 - 1;
-      
+
         rayDirection[0] = screenX - origin[0];
         rayDirection[1] = screenY - origin[1];
         rayDirection[2] = -focalLength - origin[2];
@@ -65,95 +65,112 @@ void pathtrace(int[][] pixels) {
         hitColor[0] = 0;
         hitColor[1] = 0;
         hitColor[2] = 0;
-        
+
         float hitDistanceMin = 0;
         float hitDistanceMax = 1000000;
         castRay(origin, rayDirection, hitDistanceMin, hitDistanceMax, 0, hitVector, hitNormalVector, hitColor);
-        if(hitColor[0] < 0) hitColor[0] = 0; if(hitColor[0] > 1) hitColor[0] = 1;
-        if(hitColor[1] < 0) hitColor[1] = 0; if(hitColor[1] > 1) hitColor[1] = 1;
-        if(hitColor[2] < 0) hitColor[2] = 0; if(hitColor[2] > 1) hitColor[2] = 1;
+        if (hitColor[0] < 0) hitColor[0] = 0; 
+        if (hitColor[0] > 1) hitColor[0] = 1;
+        if (hitColor[1] < 0) hitColor[1] = 0; 
+        if (hitColor[1] > 1) hitColor[1] = 1;
+        if (hitColor[2] < 0) hitColor[2] = 0; 
+        if (hitColor[2] > 1) hitColor[2] = 1;
         pixelColor[0] += hitColor[0];
         pixelColor[1] += hitColor[1];
         pixelColor[2] += hitColor[2];
       }
-      
+
       // Gamma correction
       pixelColor[0] = sqrt(pixelColor[0] * samplesMultiplier);
       pixelColor[1] = sqrt(pixelColor[1] * samplesMultiplier);
       pixelColor[2] = sqrt(pixelColor[2] * samplesMultiplier);
-      
+
       int alpha = 255;
       int red = (int)(pixelColor[0] * 255);
       int green = (int)(pixelColor[1] * 255);
       int blue = (int)(pixelColor[2] * 255);
-      if(red < 0) red = 0; if(red > 255) red = 255;
-      if(green < 0) green = 0; if(green > 255) green = 255;
-      if(blue < 0) blue = 0; if(blue > 255) blue = 255;
-      
-      
+      if (red < 0) red = 0; 
+      if (red > 255) red = 255;
+      if (green < 0) green = 0; 
+      if (green > 255) green = 255;
+      if (blue < 0) blue = 0; 
+      if (blue > 255) blue = 255;
+
+
       pixels[i][j] = ((alpha << 24) & ALPHA_MASK) | ((red << 16) & RED_MASK) | ((green << 8) & GREEN_MASK) | (blue & BLUE_MASK);
     }
   }
 }
 
 
-float[] castRayDirection = {0,0,0};
+float[] castRayHitVector = {0, 0, 0};
+float[] castRayHitNormalVector = {0, 0, 0};
+float[] castRayDirection = {0, 0, 0};
 void castRay(
-    float[] rayCenter, float[] rayDirection, 
-    float hitDistanceMin, float hitDistanceMax,
-    float depth,
-    float[] hitVector, float[] hitNormalVector, float[] hitColor
+  float[] rayCenter, float[] rayDirection, 
+  float hitDistanceMin, float hitDistanceMax, 
+  float depth, 
+  float[] hitVector, float[] hitNormalVector, float[] hitColor
   ) {
- float EPSILON = 0.001;
- if(depth > MAX_RAY_BOUNCES) {
-   hitColor[0] = 0;
-   hitColor[1] = 0;
-   hitColor[2] = 0;
-   return;   
- }
- 
- // TODO: Find best hit
- for (int sphereIndex = 0; sphereIndex < spheres.length; sphereIndex += 4) {
-    float hitDistance = rayHitSphere(
-      rayCenter, rayDirection, 
-      spheres[sphereIndex], spheres[sphereIndex + 1], spheres[sphereIndex + 2], spheres[sphereIndex + 3], 
-      hitDistanceMin, hitDistanceMax,
-      hitVector, hitNormalVector
-      );
-    if (hitDistance > 0) {
-      // Random unit vector
-      float randA = nextRandom() * TWO_PI;
-      float randZ = nextRandom() * 2 - 1;
-      float randR = sqrt(1 - randZ * randZ);
-      
-      float randVecX = randR * cos(randA);
-      float randVecY = randR * sin(randA);
-      float randVecZ = randZ;
-      
-      castRayDirection[0] = (hitNormalVector[0] + randVecX) - hitVector[0];
-      castRayDirection[1] = (hitNormalVector[1] + randVecY) - hitVector[1];
-      castRayDirection[2] = (hitNormalVector[2] + randVecZ) - hitVector[2];
-      castRay(hitVector, castRayDirection, hitDistanceMin, hitDistanceMax, depth + 1, hitVector, hitNormalVector, hitColor);
-      
-      hitColor[0] = hitColor[0] * 0.5;
-      hitColor[1] = hitColor[1] * 0.5;
-      hitColor[2] = hitColor[2] * 0.5;
-      return;
-    }
-  }
-  
-  // Sky
-  float rayDirectionLenSquared = rayDirection[0] * rayDirection[0] + rayDirection[1] * rayDirection[1] + rayDirection[2] * rayDirection[2];
-  if(rayDirectionLenSquared < EPSILON) {
+  float EPSILON = 0.001;
+  if (depth > MAX_RAY_BOUNCES) {
     hitColor[0] = 0;
     hitColor[1] = 0;
     hitColor[2] = 0;
-  } else {
-    // How much are we looking up, normalized to the range [0;1[
-    float t = (rayDirection[1] / sqrt(rayDirectionLenSquared) + 1.0) * 0.5;
-    hitColor[0] = 1.0*t + 0.5*(1-t);
-    hitColor[1] = 1.0*t + 0.7*(1-t);
-    hitColor[2] = 1.0*t + 1.0*(1-t);
+    return;
+  }
+
+  float closestHitDistance = -1;
+  for (int sphereIndex = 0; sphereIndex < spheres.length; sphereIndex += 4) {
+    float hitDistance = rayHitSphere(
+      rayCenter, rayDirection, 
+      spheres[sphereIndex], spheres[sphereIndex + 1], spheres[sphereIndex + 2], spheres[sphereIndex + 3], 
+      hitDistanceMin, hitDistanceMax, 
+      castRayHitVector, castRayHitNormalVector
+      );
+    if (hitDistance > 0 && (closestHitDistance < 0 || hitDistance < closestHitDistance)) {
+      closestHitDistance = hitDistance;
+      hitVector[0] = castRayHitVector[0];
+      hitVector[1] = castRayHitVector[1];
+      hitVector[2] = castRayHitVector[2];
+      hitNormalVector[0] = castRayHitNormalVector[0];
+      hitNormalVector[1] = castRayHitNormalVector[1];
+      hitNormalVector[2] = castRayHitNormalVector[2];
+    }
+  }
+
+  if (closestHitDistance > 0) {
+    // Random unit vector
+    float randA = nextRandom() * TWO_PI;
+    float randZ = nextRandom() * 2 - 1;
+    float randR = sqrt(1 - randZ * randZ);
+
+    float randVecX = randR * cos(randA);
+    float randVecY = randR * sin(randA);
+    float randVecZ = randZ;
+
+    castRayDirection[0] = (hitNormalVector[0] + randVecX) - hitVector[0];
+    castRayDirection[1] = (hitNormalVector[1] + randVecY) - hitVector[1];
+    castRayDirection[2] = (hitNormalVector[2] + randVecZ) - hitVector[2];
+    castRay(hitVector, castRayDirection, hitDistanceMin, hitDistanceMax, depth + 1, hitVector, hitNormalVector, hitColor);
+
+    hitColor[0] = hitColor[0] * 0.5;
+    hitColor[1] = hitColor[1] * 0.5;
+    hitColor[2] = hitColor[2] * 0.5;
+  } else {  
+    // Sky
+    float rayDirectionLenSquared = rayDirection[0] * rayDirection[0] + rayDirection[1] * rayDirection[1] + rayDirection[2] * rayDirection[2];
+    if (rayDirectionLenSquared < EPSILON) {
+      hitColor[0] = 0;
+      hitColor[1] = 0;
+      hitColor[2] = 0;
+    } else {
+      // How much are we looking up, normalized to the range [0;1[
+      float t = (rayDirection[1] / sqrt(rayDirectionLenSquared) + 1.0) * 0.5;
+      hitColor[0] = 1.0*t + 0.5*(1-t);
+      hitColor[1] = 1.0*t + 0.7*(1-t);
+      hitColor[2] = 1.0*t + 1.0*(1-t);
+    }
   }
 }
 
@@ -162,7 +179,7 @@ float[] sphereCenterToRayStart = {0, 0, 0};
 float rayHitSphere(
   float[] rayCenter, float[] rayDirection, 
   float sphereCenterX, float sphereCenterY, float sphereCenterZ, float sphereRadius, 
-  float hitDistanceMin, float hitDistanceMax,
+  float hitDistanceMin, float hitDistanceMax, 
   float[] hitVector, float[] hitNormalVector
   ) {
   float EPSILON = 0.001;
@@ -206,7 +223,7 @@ float rayHitSphere(
   hitNormalVector[0] = (hitVector[0] - sphereCenterX) / sphereRadius;
   hitNormalVector[1] = (hitVector[1] - sphereCenterY) / sphereRadius;
   hitNormalVector[2] = (hitVector[2] - sphereCenterZ) / sphereRadius;
-  
+
   return smallerSolution;
 }
 
