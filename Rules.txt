@@ -1,0 +1,42 @@
+> Übungsbeispiel "Kunstwerk"
+> 
+> Programmieren Sie mit den im Kapitel 2 erlernten geometrischen Grundformen (2D) und dem Einsatz von Farben ein kreatives Kunstwerk. 
+> 
+> 1. Schritt: 
+> 
+> Erstellen Sie einen neuen Sketch in der Processing mittels "Datei" - "Neu" und verwenden Sie die in diesem Kapitel gelernte Struktur eines Processing Programms und die in diesem Kapitel gelernten geometrischen Formen. 
+> 
+> Für Ihr Kunstwerk gelten folgende Rahmenbedingungen:
+> 
+>     Verwenden Sie maximal 20 verschiedene Objekte. 
+>     Die Objekte selbst dürfen nur aus den Kategorien "2D Primitives" und "Typography" aus der Processing Reference sein. 
+>     Farben, Konturen und Transparenz dürfen verwendet werden.
+>     Sketch-Größe: maximal 400 x 400 Pixel
+> 
+> Speichern Sie Ihr Programm und führen Sie es aus. Erstellen Sie einen Screenshot Ihres fertig gestellten im Sketch-Fenster angezeigten Kunstwerks (dazu das Programm über den "Run" Button starten). 
+> 
+> Zur Erstellung und Speicherung eines Screenshots können Sie beispielsweise folgende Tools verwenden: 
+> 
+>     Snipping Tool (WIN; integriert; Windows Taste drücken, "Snipping Tool" eintippen)
+>     Grab (MAC; integriert; Spotlight öffnen --> "Grab")
+>     Screenshot Tool (Linus; "Zubehör" --> "Screenshot")
+> 
+> Verwenden Sie folgende Dateinamen: 
+> 
+>     Quellcode-Datei: <nachname>_<vorname>_kunstwerk_code.pde
+>     Screenshot: <nachname>_<vorname>_kunstwerk.jpg oder <nachname>-<vorname>_kunstwerk.png
+> 
+> Beispiel für Max Mustermann: 
+> 
+>     Quellcode-Datei: mustermann_max_kunstwerk_code.pde
+>     Screenshot: mustermann_max_kunstwerk.png
+> 
+> 2. Schritt
+> 
+> Erstellen Sie einen Eintrag im Forum mit dem Titel "Kunstwerk von <Vorname> <Nachname> - <Kunstwerktitel>". 
+> 
+> Laden Sie NUR den Screenshot Ihres Kunstwerks in Ihren eigenen Forumsbeitrag hoch und geben Sie Ihrem Kunstwerk einen treffenden Titel. Fügen Sie dem Eintrag außerdem 3 Sätze über sich persönlich, Ihre Programmiererfahrung, Ihre Motivation zum Studium und zur Absolvierung dieses Kurses hinzu, um sich anderen Kursteilnehmenden vorzustellen. 
+> 
+> Abonnieren Sie Ihren Forumsbeitrag, um über weitere Kommentare zu Ihrem Beitrag informiert zu werden. Dies ist wichtig für die weiteren Teile des Beispiels. 
+> 
+> -- <https://edu.tuwien.ac.at/mod/page/view.php?id=2539>
